@@ -23,7 +23,6 @@
 #include <crtdbg.h>
 
 #include "buffer.h"
-#include "buffer.c"
 
 /*check for ANSI C compliancy */
 #define ANSI_C 0
@@ -94,7 +93,7 @@ int main(int argc, char **argv){
        err_printf("%s%s%s",argv[0],": ","Error in loading buffer.");
 
 /* close the source file */	
- //	fclose(fi);
+	fclose(fi);
 /*find the size of the file  */
     if (loadsize == LOAD_FAIL){
      printf("The input file %s %s\n", argv[1],"has not been completely loaded.");

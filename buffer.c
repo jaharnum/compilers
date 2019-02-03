@@ -10,24 +10,27 @@ Purpose: Create a character buffer that demonstrates proper use of memory alloca
 Function list:
 				b_allocate()
 				b_addc()
-				b_capacity()
 				b_clear()
-				b_compact()
-				b_eob()
 				b_free()
-				b_getc()
-				b_getcoffset()
-				b_isempty()
 				b_isfull()
 				b_limit()
-				b_location()
+				b_capacity()
 				b_mark()
 				b_mode()
+				b_incfactor()
+				b_load()
+				b_isempty()
+				b_getc()
+				b_eob()
 				b_print()
-				b_reset()
-				b_retract()
-				b_rewind()
+				b_compact()
 				b_rflag()
+				b_retract()
+				b_reset()
+				b_getcoffset()
+				b_rewind()
+				b_location()
+
 */
 #include <stdio.h>  /* standard input/output */
 #include <malloc.h> /* for dynamic memory allocation*/
@@ -53,10 +56,79 @@ Algorithm:
 			- Check that o_mode is an accepted value
 			- Check that init_capacity is an accepted value
 			- Check that inc_factor is an accepted value based on the o_mode
-			- Create a new Buffer struct using the provided values
+			- Allocate memory for a new Buffer struct using the provided values
 			- Return a pointer to the new Buffer
 */
-Buffer * b_allocate(short init_capacity, char inc_factor, char o_mode);
+Buffer * b_allocate(short init_capacity, char inc_factor, char o_mode) {
+
+	if (!(o_mode != 'f' || o_mode != 'a' || o_mode != 'm')) {
+		printf("o_mode is an invalid value\n");
+		return NULL;
+	}
+
+	if (init_capacity < 0 || init_capacity > MAX_CAPACITY) {
+		printf("init_capacity is an invalid value\n");
+		return NULL;
+	}
+	
+	/*Allocate memory for a BufferDescription pointer*/
+	Buffer *pBuffer = (Buffer*) calloc(1, sizeof(Buffer));
+
+	if (pBuffer == NULL) {
+		printf("Unable to allocate memory for the Buffer\n");
+		return NULL;
+	}
+
+	/*If the init_capacity is 0, the capacity and increment factor are set to their default values*/
+	if (init_capacity == 0) {
+		init_capacity = DEFAULT_INIT_CAPACITY;
+		inc_factor = DEFAULT_INC_FACTOR;
+	}
+
+	/*Set o_mode values*/
+	switch (o_mode) {
+
+	case 'a':
+		pBuffer->mode = 1;
+		if (inc_factor < 1 || inc_factor>255) {
+			printf("Invalid inc_factor for this mode\n");
+			return NULL;
+		}
+		break;
+	case 'm':
+		pBuffer->mode = -1;
+		if (inc_factor < 1 || inc_factor>100) {
+			printf("Invalid inc_factor for this mode\n");
+			return NULL;
+		}
+		break;
+	case 'f':
+		inc_factor = 0;
+		pBuffer->mode = 0;
+	}
+
+	/*Allocate memory for character array.
+		Because capacity is already in bytes, there is no need to multiply it by sizeof(char)*/
+	char *charBuffer = (char*) malloc(init_capacity);
+
+	/*Check if allocation was successful*/
+	if (charBuffer == NULL) {
+		printf("Unable to allocate memory for the Buffer\n");
+		return NULL;
+	}
+	else {
+		pBuffer->cb_head = charBuffer;
+	}
+
+	/*Set the rest of the member variables*/
+	pBuffer->flags = DEFAULT_FLAGS;
+	pBuffer->capacity = init_capacity;
+	pBuffer->inc_factor = inc_factor;
+	pBuffer->getc_offset = 0;
+
+	return pBuffer;
+
+}
 
 /*
 Purpose: Adds a character to the buffer array and expands the array if appropriate according to the current size and mode of the buffer.
@@ -64,7 +136,6 @@ Author: Jamie Harnum
 History / Versions: 29/01: V 0.1
 Called functions: 
 					b_isfull()
-
 Parameters: 
 			pBuffer const pBD: Pointer to the BufferDescriptor of the Buffer to add a char to
 			char symbol: Character to be added to the buffer
@@ -91,39 +162,132 @@ Algorithm:
 				- add symbol to buffer, change the value of addc_offset by 1, save new capacity in capacity variable
 				- return pointer to the Buffer structure
 */
-pBuffer b_addc(pBuffer const pBD, char symbol);
+pBuffer b_addc(pBuffer const pBD, char symbol) {
+
+	if (pBD == 0) {
+		return NULL;
+	}
+
+	/*Reset r_flag bit to 0*/
+	pBD->flags &= RESET_R_FLAG;
+
+	/*If the buffer is not full, add the character and return the buffer pointer*/
+	if (b_isfull(pBD) == 0) {
+
+		pBD->cb_head[pBD->addc_offset] = symbol;
+		pBD->addc_offset += 1;
+
+		return pBD;
+
+	}
+	else {
+
+		short new_capacity;
+		short available_space;
+
+		/*If the buffer is full, action is determined by the mode*/
+		
+		switch (pBD->mode) {
+		case 0:
+			/*Fixed mode, no change*/
+			return NULL;
+		case 1:
+			/*Additive mode: the capacity is increased by the inc_factor*/
+			new_capacity = pBD->capacity + pBD->inc_factor;
+
+			if (new_capacity < 0) {
+				return NULL;
+			}
+			else if (new_capacity > MAX_CAPACITY) {
+				new_capacity = MAX_CAPACITY;
+			}
+			break;
+		case -1:
+			if (pBD->capacity = MAX_CAPACITY) {
+				return NULL;
+			}
+			/*Multiplicative mode: Increment by the percentage of the available space indicated by the inc_factor*/
+			available_space = MAX_CAPACITY - pBD->capacity;
+			new_capacity = pBD->capacity + (available_space * (pBD->inc_factor / 100));
+
+			if (new_capacity > MAX_CAPACITY) {
+				new_capacity = MAX_CAPACITY;
+			}
+
+		}
+
+		/* if 1 or -1 and has not failed, expand array size using realloc()*/
+		char *cBuffer = (char*) realloc(pBD->cb_head, new_capacity);
+
+		if (cBuffer == NULL) {
+			return NULL;
+		}
+		else if (cBuffer != pBD->cb_head) {
+			pBD->cb_head = cBuffer;
+			pBD->flags |= SET_R_FLAG;
+		}
+
+		/*Add symbol to buffer and change capacity variable*/
+		pBD->cb_head[pBD->addc_offset] = symbol;
+		pBD->addc_offset += 1;
+		pBD->capacity = new_capacity;
+
+		return pBD;
+
+	}
+
+
+}
 
 /*
 Purpose: Retain the memory space that has been allocated to the buffer, but re-initialize data members so the buffer will appear empty and the next added character will be at the beginning of the list
 Author: Jamie Harnum
-History / Versions: 29/01: V 0.1
-Called functions: [function(s) called by this function]
+History / Versions: 02/02: V 0.5
+					29/01: V 0.1
+Called functions:
 Parameters: Buffer * const pBD - the pointer to the Buffer structure to be cleared
-Return value: If a runtime error is possible, the function returns -1 to notify of failure.
+Return value:	If successful, returns 1.
+				If a runtime error is possible, the function returns -1 to notify of failure. 
 Algorithm: 
 			- set getc_offset to 0
 			- set addc_offset to 0
-			- reset EOB flag if set
-			- set *cb_head to null (or 0?)
+			- reset EOB flag
+			- set *cb_head to 0 (the char itself, not the pointer)
 */
 int b_clear(Buffer * const pBD) {
 	if (pBD == 0) {
 		return RT_FAIL_1;
 	}
+
+	pBD->getc_offset = 0;
+	pBD->addc_offset = 0;
+	*(pBD->cb_head) = 0;
+
+	pBD->flags &= RESET_EOB;
+
+	return 1;
 }
 
 /*
 Purpose: Free all memory occupied by the character buffer and the Buffer structure itself
 Author: Jamie Harnum
 History / Versions: 29/01: V 0.1
-Called functions: None
+Called functions: b_isempty()
 Parameters: Buffer * const pBD - pointer to the Buffer to be freed
 Return value: Void
-Algorithm:  - free buffer array - do i need to step thru all the chars or can i just get it from the head of the array * the offset?
-			- free buffer struct
-			- notify user of success
+Algorithm:  - free buffer array
+			- free buffer description struct
 */
-void b_free(Buffer * const pBD);
+void b_free(Buffer * const pBD) {
+	if (pBD == NULL) {
+		return;
+	}
+	if (!b_isempty(pBD)) {
+		free(pBD->cb_head);
+	}
+
+	free(pBD);
+}
 
 /*
 Purpose: Check if the Buffer is full
@@ -136,9 +300,16 @@ Return value: Returns 1 if the character buffer is full and 0 otherwise.
 Algorithm: Compare addc_object*sizeof(char) to the current buffer capacity
 */
 int b_isfull(Buffer * const pBD) {
+
 	if (pBD == 0) {
 		return RT_FAIL_1;
 	}
+
+	if (pBD->capacity == (pBD->addc_offset * sizeof(char))) {
+		return 1;
+	}
+
+	return 0;
 }
 
 /*
@@ -156,7 +327,8 @@ short b_limit(Buffer * const pBD) {
 			return RT_FAIL_1;
 		}
 		else {
-			return pBD->getc_offset;
+			/*the number of chars currently in the buffer will be equal to the index to add the next char at*/
+			return pBD->addc_offset;
 		}
 }
 
@@ -201,19 +373,22 @@ short b_mark(pBuffer const pBD, short mark) {
 }
 
 /*
-Purpose: [brief explanation of purpose of the function]
+Purpose: Get the mode of a particular buffer
 Author: Jamie Harnum
 History / Versions: 29/01: V 0.1
-Called functions: [function(s) called by this function]
-Parameters: [for each formal parameter: type, specific range or values if applicable]
-Return value: [type, specific values if applicable]
-			If there is a possible runtime error, it will return -1.
-Algorithm: [outline main steps / sections only; do not include implementation details; for small clear functions leave this empty]
+Called functions: 
+Parameters: Buffer * const pBD - a pointer to the Buffer in question
+Return value: The int representing the buffer mode
+			If there is a possible runtime error, it will return 10.
+Algorithm:
 */
 int b_mode(Buffer * const pBD) {
 	if (pBD == 0) {
-		return RT_FAIL_1;
+		printf("Null pointer error\n");
+		return 10;
 	}
+
+	return pBD->mode;
 }
 
 /*
@@ -222,11 +397,17 @@ Author: Jamie Harnum
 History / Versions: 29/01: V 0.1
 Called functions: None
 Parameters: Buffer * const pBD - a pointer to the Buffer to get the inc_factor of
-Return value: Returns the non-negative value of inc_factor
+Return value: Returns the value of inc_factor
 			If there is a possible runtime error, it will return 0x100.
 Algorithm:
 */
-size_t b_incfactor(Buffer * const pBD);
+size_t b_incfactor(Buffer * const pBD) {
+	if (pBD == NULL) {
+		return 0x100;
+	}
+
+	return pBD->inc_factor;
+}
 
 /*
 Purpose: Add chars from a file to the buffer
@@ -244,12 +425,36 @@ Return value: The number of characters that were added to the buffer.
 Algorithm: 
 			- Get chars from file one at a time and try to add each one to the buffer
 				- if b_addc() returns NULL, unget() the last character and return LOAD_FAIL
-			- if all characters are added successfully, unget() the last character to remove the EOF marker and return the number of chars added (current - previous)
+			- if all characters are added successfully, unget() the last character to remove the EOF marker and return the number of chars added
 */
 int b_load(FILE * const fi, Buffer * const pBD) {
 	if (pBD == 0 || fi == 0) {
 		return RT_FAIL_1;
 	}
+	char newChar;
+	short prev_offset = pBD->addc_offset;
+	short post_offset;
+
+	while (!feof(fi)) {
+
+		newChar = fgetc(fi);
+
+		pBuffer addResult = b_addc(pBD, newChar);
+
+		if (addResult == NULL) {
+			printf("Last character read from input file is: %c %i", newChar, newChar); 
+			ungetc(newChar, fi);
+			return LOAD_FAIL;
+		}
+
+	}
+
+	/*If end of file is reached, remove EOF marker*/
+	ungetc(newChar, fi);
+
+	post_offset = pBD->addc_offset;
+
+	return post_offset - prev_offset; 
 }
 
 /*
@@ -266,7 +471,8 @@ int b_isempty(Buffer * const pBD) {
 	if (pBD == 0) {
 		return RT_FAIL_1;
 	}
-	else if (pBD->addc_offset == 0) {
+	else if (pBD->addc_offset == 0 || pBD->addc_offset == 1) {
+		/*Buffer may be empty upon reading from a file but still have an addc_offset of 1 from the EOF char*/
 		return 1;
 	} 
 
@@ -293,6 +499,15 @@ char b_getc(Buffer * const pBD) {
 	if (pBD == 0) {
 		return RT_FAIL_2;
 	}
+
+	if (pBD->getc_offset == pBD->addc_offset) {
+		pBD->flags |= SET_EOB;
+	}
+	else {
+		pBD->flags &= RESET_EOB;
+	}
+	char c = pBD->cb_head[pBD->getc_offset];
+	return c;
 }
 
 /*
@@ -310,17 +525,25 @@ int b_eob(Buffer * const pBD) {
 	if (pBD == 0) {
 		return RT_FAIL_1;
 	}
-	/*use if(x & CHECK_EOB) to check - TRUE if set, FALSE if not set*/
+
+	/*If the result of flags & CHECK is 1 it means the EOB bit is set to 1*/
+	if (pBD->flags & CHECK_EOB) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+
 }
 
 /*
 Purpose: Prints the content of the Buffer character by character
 Author: Jamie Harnum
-History / Versions: 29/01: V 0.1
+History / Versions: 02/02: V 0.5
+					29/01: V 0.1
 Called functions: b_isempty()
 				  b_getc()
 				  b_eob()
-				  printf()
 Parameters: Buffer * const pBD - a pointer to the Buffer to print from
 Return value: The number of characters printed.
 			If there is a possible runtime error, it will return -1.
@@ -333,13 +556,37 @@ int b_print(Buffer * const pBD) {
 	if (pBD == 0) {
 		return RT_FAIL_1;
 	}
+	int numChars = pBD->addc_offset;
+
+	if (b_isempty(pBD)) {
+		return 0;
+	}
+
+	char c;
+
+	/*While the end of buffer bit is not set (i.e. the end of the buffer has not been reached)*/
+	while (!b_eob(pBD)) {
+
+		c = b_getc(pBD);
+
+		if (c == RT_FAIL_2) {
+			return RT_FAIL_1;
+		}
+		else {
+			printf("%c",c); 
+		}
+	}
+	printf("end of print\n");	/*REMOVE*/
+	return numChars - pBD->getc_offset;
+
+
 }
 
 /*
 Purpose: Reallocates the buffer's memory to a more appropriate value given the current contents
 Author: Jamie Harnum
 History / Versions: 29/01: V 0.1
-Called functions: [function(s) called by this function]
+Called functions: 
 Parameters: Buffer * const pBD - a pointer to the Buffer being reallocated
 			char symbol - the symbol to be added to the end of the character buffer to show that the buffer has been appropriately reallocated.
 Return value: A pointer to the reallocated Buffer
@@ -355,14 +602,34 @@ Buffer * b_compact(Buffer * const pBD, char symbol) {
 	if (pBD == 0) {
 		return NULL;
 	}
+
+	int new_capacity = (pBD->addc_offset + 1) * sizeof(char);
+
+	char *pChar = (char*)realloc(pBD->cb_head, new_capacity);
+
+	if (pChar == NULL) {
+		return NULL;
+	}
+	
+	/*Are we pointing to a new block? If so, set the r_flag*/
+	if (pChar != pBD->cb_head) {
+		pBD->cb_head = pChar;
+		pBD->flags |= SET_R_FLAG;
+	}
+
+	pBD->capacity = new_capacity;
+	pBD->cb_head[pBD->addc_offset] = symbol;
+	pBD->addc_offset += 1;
+
+	return pBD;
 }
 
 /*
 Purpose: Check if the rflag bit has been set.
 Author: Jamie Harnum
 History / Versions: 29/01: V 0.1
-Called functions: [function(s) called by this function]
-Parameters: [for each formal parameter: type, specific range or values if applicable]
+Called functions: 
+Parameters: Buffer * const pBD - a pointer to the buffer to check
 Return value: The value of the flags field
 			If there is a possible runtime error, it will return -1.
 Algorithm: - use bitwise logic to check if the r_flag bit has been set
@@ -373,13 +640,24 @@ char b_rflag(Buffer * const pBD) {
 	if (pBD == 0) {
 		return RT_FAIL_1;
 	}
+
+	/*If the result is 1, the flag is set to 1*/
+	if ((pBD->flags & CHECK_R_FLAG)==1) { 
+		printf("The r_flag bit is set to 1\n");
+	}
+	else {
+		printf("The r_flag bit is set to 0\n");
+	}
+
+	return (char) pBD->flags;
 }
 
 /*
 Purpose: Decrements getc_offset, i.e. retracts the buffer by 1 char.
 Author: Jamie Harnum
-History / Versions: 29/01: V 0.1
-Called functions: [function(s) called by this function]
+History / Versions: 02/02: V 0.5
+					29/01: V 0.1
+Called functions: 
 Parameters: Buffer * const pBD - a pointer to the Buffer to be retracted
 Return value: The new getc_offset.
 			If there is a possible runtime error, it will return -1.
@@ -389,13 +667,21 @@ short b_retract(Buffer * const pBD) {
 	if (pBD == 0) {
 		return RT_FAIL_1;
 	}
+
+	if (pBD->getc_offset < 0) {
+		pBD->getc_offset -= 1;
+		return pBD->getc_offset;
+	}
+	else {
+		return RT_FAIL_1;
+	}
 }
 
 /*
 Purpose: Sets the value of getc_offset to the current markc_offset
 Author: Jamie Harnum
 History / Versions: 29/01: V 0.1
-Called functions: [function(s) called by this function]
+Called functions: 
 Parameters: Buffer * const pBD - a pointer to the Buffer to be altered
 Return value: The new value of getc_offset.
 			If there is a possible runtime error, it will return -1.
@@ -405,6 +691,10 @@ short b_reset(Buffer * const pBD) {
 	if (pBD == 0) {
 		return RT_FAIL_1;
 	}
+
+	pBD->getc_offset = pBD->markc_offset;
+
+	return pBD->getc_offset;
 }
 
 /*
@@ -453,7 +743,8 @@ int b_rewind(Buffer * const pBD) {
 /*
 Purpose: Get a pointer to the location indicated by markc_offset
 Author: Jamie Harnum
-History / Versions: 29/01: V 0.1
+History / Versions: 02/02: V 0.5
+					29/01: V 0.1
 Called functions: 
 Parameters: Buffer * const pBD - a pointer to the Buffer required
 Return value: A pointer to the char in the Buffer indicated by the value of markc_offset
@@ -464,4 +755,16 @@ char * b_location(Buffer * const pBD) {
 	if (pBD == 0) {
 		return NULL;
 	}
+
+	char *mChar = "";
+
+	*mChar = pBD->cb_head[pBD->markc_offset];
+
+	if (!mChar) {
+		return NULL;
+	}
+	else {
+		return mChar;
+	}
+
 }
