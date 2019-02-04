@@ -4,7 +4,7 @@ Compiler: MS Visual Studio 2017
 Author: Jamie Harnum, #040898399 + Sv. Ranev
 Course: CST8152 - Compilers, Lab Section: 13
 Assignment: 1
-Date: [date of the final version]
+Date: Feb 3 2019
 Professor: Sv. Ranev
 Purpose: Preprocessor directives, type declarations, and prototypes necessary for buffer implementation as required for Assignment 1
 Function list: [list here all functions declared / defined in the file. do not include function parameter lists and return type - i.e. func(), not int func(int a).
@@ -34,13 +34,8 @@ Function list: [list here all functions declared / defined in the file. do not i
 
 
 /* You should add your own constant definitions here */
-#define FIXED			0
-
-#define ADDITIVE		1
-
-#define MULTIPLICATIVE -1
-
 #define MAX_CAPACITY	( SHRT_MAX - 1 )
+#define MIN_CAPACITY	0
 
 
 /* Add your bit-masks constant definitions here */
