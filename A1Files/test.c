@@ -12,18 +12,12 @@
   */
 #define _CRT_SECURE_NO_WARNINGS
 
-  /* Check for memory leaks during testing */
+/* Check for memory leaks during testing */
 #define _CRTDBG_MAP_ALLOC
-
-
 #include <stdio.h>
-
 #include <stdlib.h>
-
 #include <string.h>
-
 #include <stdarg.h>
-
 #include <crtdbg.h>
 
 #include "buffer.h"
