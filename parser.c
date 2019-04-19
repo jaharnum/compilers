@@ -524,7 +524,7 @@ void syn_eh(int sync_token_code) {
 				return;
 			}
 
-			//lookahead = malar_next_token();
+			lookahead = malar_next_token();
 			return;
 		}
 
