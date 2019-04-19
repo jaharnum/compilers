@@ -38,8 +38,6 @@ Function list:
 
 #include "buffer.h"
 
-extern Buffer *str_LTBL;
-
 /*
 Purpose: Create and allocate space to a new BufferDescriptor struct.
 Author: Jamie Harnum
@@ -173,7 +171,8 @@ Algorithm:
 */
 pBuffer b_addc(pBuffer const pBD, char symbol) {
 	if (pBD->cb_head == NULL) {
-		printf("CB_HEAD IS NULL IN B_ADDC for str_LTBL");
+		printf("cb_head is null in b_addc");
+		pBD->cb_head;
 	}
 	if (pBD == 0) {
 		return NULL;
@@ -285,8 +284,7 @@ int b_clear(Buffer * const pBD) {
 	pBD->getc_offset = 0;
 	pBD->markc_offset = 0;
 	pBD->addc_offset = 0;
-	pBD->cb_head = 0; /*TODO: Previously: *(pBD->cb_head)=0, marked "why this code"*/
-
+	
 	pBD->flags &= RESET_EOB;
 	pBD->flags &= RESET_R_FLAG;
 

@@ -50,7 +50,8 @@ void program(void) {
 void opt_statements(void) {
 	switch (lookahead.code) {
 	case AVID_T:
-	case SVID_T: statements(); break;
+	case SVID_T: statements(); 
+		break;
 	case KW_T: 
 		/*check for IF, WHILE, READ, WRITE*/ 
 		if (lookahead.attribute.get_int == IF
@@ -60,29 +61,48 @@ void opt_statements(void) {
 			statements();
 			break;
 		}
-	default: /*empty*/;
+	default: 
+		gen_incode("PLATY: Opt_statements parsed");
 	}
 }
 
 /*same as opt_statements but having an empty string is an error*/
 void statements(void) {
+
 	switch (lookahead.code) {
 	case AVID_T:
-	case SVID_T: statement(); opt_statements(); break;
+	case SVID_T: statement(); next_statements();
+		break;
 	case KW_T:
 		/*check for IF, WHILE, READ, WRITE*/
 		if (lookahead.attribute.get_int == IF
 			|| lookahead.attribute.get_int == WHILE
 			|| lookahead.attribute.get_int == READ
 			|| lookahead.attribute.get_int == WRITE) {
-			statement(); opt_statements();
+			statement(); next_statements();
 			break;
 		}
-	default: /*empty string*/
+	default: /*no further statements*/
 		syn_printe();
 	}
 }
 
+void next_statements() {
+	switch (lookahead.code) {
+	case AVID_T:
+	case SVID_T: statement(); next_statements();
+		break;
+	case KW_T:
+		/*check for IF, WHILE, READ, WRITE*/
+		if (lookahead.attribute.get_int == IF
+			|| lookahead.attribute.get_int == WHILE
+			|| lookahead.attribute.get_int == READ
+			|| lookahead.attribute.get_int == WRITE) {
+			statement(); next_statements();
+			break;
+		}
+	}
+}
 /*FIRST(statement) -> KW_T(IF), KW_T(WHILE), KW_T(READ), KW_T(WRITE), AVID_T, SVID_T*/
 void statement(void) {
 	switch (lookahead.code) {
@@ -123,6 +143,9 @@ void assignment_expression(void) {
 		gen_incode("PLATY: Assignment expression (arithmetic) parsed");
 		break;
 	case SVID_T: match(SVID_T, NO_ATTR); match(ASS_OP_T, NO_ATTR);  string_expression();
+		gen_incode("PLATY: Assignment expression (string) parsed");
+		break;
+	default: syn_printe();
 	}
 	
 }
@@ -271,16 +294,15 @@ void next_additive_expression(void) {
 	switch (lookahead.code) {
 	case ART_OP_T: 
 		if (lookahead.attribute.get_int == PLUS) {
-			match(ART_OP_T, PLUS); next_additive_expression();
+			match(ART_OP_T, PLUS); multiplicative_arithmetic_expression();  next_additive_expression();
 			gen_incode("PLATY: Additive arithmetic expression parsed");
 		}
 		else if (lookahead.attribute.get_int == MINUS) {
-			match(ART_OP_T, MINUS); next_additive_expression();
+			match(ART_OP_T, MINUS); multiplicative_arithmetic_expression();
+			next_additive_expression();
 			gen_incode("PLATY: Additive arithmetic expression parsed");
 		}
 		break;
-	case AVID_T: case FPL_T: case INL_T: case LPR_T: 
-		multiplicative_arithmetic_expression(); break;
 	default: /*No more expressions left*/
 		//TODO: check if it makes more sense to do incode here
 		return;
@@ -298,16 +320,16 @@ void next_multiplicative_expression(void) {
 	switch (lookahead.code) {
 	case ART_OP_T:
 		if (lookahead.attribute.get_int == MULT) {
-			match(ART_OP_T, MULT); next_multiplicative_expression();
+			match(ART_OP_T, MULT); primary_arithmetic_expression(); 
+			next_multiplicative_expression();
 			gen_incode("PLATY: Multiplicative arithmetic expression parsed");
 		}
 		else if (lookahead.attribute.get_int == DIV) {
-			match(ART_OP_T, DIV); next_multiplicative_expression();
+			match(ART_OP_T, DIV); primary_arithmetic_expression();
+			next_multiplicative_expression();
 			gen_incode("PLATY: Multiplicative arithmetic expression parsed");
 		}
 		break;
-	case AVID_T: case FPL_T: case INL_T: case LPR_T:
-		primary_arithmetic_expression(); break;
 	default: /*No more expressions left*/
 		//TODO: check if it makes more sense to do incode here
 		return;
@@ -328,6 +350,7 @@ void primary_arithmetic_expression(void) {
 /*FIRST()->SVID_T, STR_T*/
 void string_expression(void) {
 	primary_string_expression(); opt_concat_expression();
+	gen_incode("PLATY: String expression parsed");
 }
 
 /*FIRST()-> SCC_OP_T (<<), e
@@ -343,8 +366,11 @@ void opt_concat_expression(void) {
 
 void primary_string_expression(void) {
 	switch (lookahead.code) {
-	case SVID_T: match(SVID_T, NO_ATTR); break;
-	case STR_T: match(STR_T, NO_ATTR); break;
+	case SVID_T: match(SVID_T, NO_ATTR); 
+		gen_incode("PLATY: Primary string expression parsed");
+		break;
+	case STR_T: match(STR_T, NO_ATTR); 
+		gen_incode("PLATY: Primary string expression parsed"); break;
 	default: /*not optional*/
 		syn_printe(); 
 	}
@@ -353,12 +379,8 @@ void primary_string_expression(void) {
 /*FIRST()->AVID_T, FPL_T, INL_T, STR_T, SVID_T*/
 //TODO: check where error messages get spit out. here?
 void conditional_expression(void) {
-	switch (lookahead.code) {
-	case AVID_T: case FPL_T: case INL_T: case STR_T: case SVID_T:
-		logical_or_expression();
-		gen_incode("PLATY: Conditional expression parsed"); break;
-	default: syn_printe();
-	}
+	logical_or_expression();
+	gen_incode("PLATY: Conditional expression parsed");
 }
 
 /*FIRST()->AVID_T, FPL_T, INL_T, STR_T, SVID_T*/
@@ -399,9 +421,11 @@ void next_and_expression(void) {
 void relational_expression(void) {
 	switch (lookahead.code) {
 	case AVID_T: case FPL_T: case INL_T: primary_a_relational_expression();
-		a_relational_comparison(); break;
+		a_relational_comparison(); 
+		break;
 	case STR_T: case SVID_T: primary_s_relational_expression();
-		s_relational_comparison(); break;
+		s_relational_comparison();
+		break;
 	default: /*non-optional*/
 		syn_printe();
 	}
@@ -449,8 +473,7 @@ void s_relational_comparison(void) {
 	case EQ: match(REL_OP_T, EQ); break;
 	case NE: match(REL_OP_T, NE); break;
 	case GT: match(REL_OP_T, GT); break;
-	case LT: match(REL_OP_T, LT); break;
-	default: syn_printe(); return; /*don't continue if there's no operator*/
+	case LT: match(REL_OP_T, LT); break;	
 	}
 
 	primary_s_relational_expression();
@@ -477,22 +500,11 @@ void match(int pr_token_code, int pr_token_attribute) {
 	if (pr_token_attribute != NO_ATTR) {
 		/*check the appropriate types of attribute for the code*/
 		
-		int i = 0;
-		int check_attr = 0;
-
-		for (; i < NUM_NEED_ATTR; ++i) {
-			/*if the lookahead is one of the types that needs a matching attribute*/
-			if (lookahead.code == NEED_ATTR[i]) {
-				++check_attr;
-			}
+		if (lookahead.attribute.int_value != pr_token_attribute) {
+			syn_eh(pr_token_code);
+			return;
 		}
-
-		if (check_attr) {
-			if (lookahead.attribute.int_value != pr_token_attribute) {
-				syn_eh(pr_token_code);
-				return;
-			}
-		}
+		
 	}
 
 	lookahead = malar_next_token();
@@ -516,22 +528,25 @@ void syn_eh(int sync_token_code) {
 	++synerrno;
 
 	while (1) {
-		lookahead = malar_next_token();
+
+		/*If the tokens don't match, check if the lookahead is the end of file before looping*/
+		if (lookahead.code == SEOF_T && sync_token_code != lookahead.code) {
+				exit(synerrno);
+		}
+
+		/*implied: this means sync_token_code is also == lookahead.code and SEOF_T*/
+		if (lookahead.code == SEOF_T) {
+			return;
+		}
 
 		/*if the tokens match, check for SEOF_T and return*/
 		if (lookahead.code == sync_token_code) {
-			if (lookahead.code == SEOF_T) {
-				return;
-			}
-
 			lookahead = malar_next_token();
 			return;
 		}
 
-		/*If the tokens don't match, check if the lookahead is the end of file before looping*/
-		if (lookahead.code == SEOF_T) {
-				exit(synerrno);
-		}
+		lookahead = malar_next_token();
+		
 	}
 }
 

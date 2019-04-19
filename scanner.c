@@ -210,7 +210,7 @@ Token malar_next_token(void) {
 
 					 return t;
 			}
-		case 255: t.code = SEOF_T; t.attribute.seof = SEOF_EOF; return t; /*End of File*/
+		case EOF: case 255: t.code = SEOF_T; t.attribute.seof = SEOF_EOF; return t; /*End of File*/
 		case '\0': t.code = SEOF_T; t.attribute.seof = SEOF_0; return t; /*End of C-type string*/
 		case '!': c = b_getc(sc_buf); /*We assume that the programmer is trying to comment a line
 									  if a lexeme starts with !, even if not followed by another !*/
@@ -386,7 +386,7 @@ int char_class (char c)
 		else if (c == '"') {
 			val = 5;
 		}
-		else if (c=='\0'||c==EOF) {
+		else if (c=='\0'||c==EOF||c==255) {
 			val = 7;
 		}
 		else {
@@ -567,13 +567,6 @@ Token aa_func10(char lexeme[]){
 			/*ignore*/
 		}
 		else {
-
-			/*This is probably a spec violation!*/
-		if (str_LTBL->cb_head == NULL) {
-			//printf("cb_head is null in aa10\n");
-			str_LTBL = b_allocate(100, 15, 'm');
-		}
-
 			b_addc(str_LTBL, lexeme[i]);
 		}
 

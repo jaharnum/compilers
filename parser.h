@@ -38,8 +38,6 @@ extern Token malar_next_token();
 static Token lookahead = { 0 };
 int synerrno;
 #define NO_ATTR -1
-#define NUM_NEED_ATTR 4
-int NEED_ATTR[] = { KW_T, LOG_OP_T, ART_OP_T, REL_OP_T };
 enum KEYWORD { ELSE, FALSE, IF, PLATYPUS,
 	READ, REPEAT, THEN, TRUE, WHILE, WRITE };
 
@@ -51,6 +49,8 @@ void program(void);
 void opt_statements(void);
 
 void statements(void);
+
+void next_statements(void);
 
 void statement(void);
 
